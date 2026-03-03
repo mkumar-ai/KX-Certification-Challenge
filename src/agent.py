@@ -1,7 +1,3 @@
-# agent.py
-# Purpose: LangGraph agentic RAG — internal retrieval first, web search only if needed
-# v3: LLM-based intent classification for scope check
-
 import os
 import re
 from typing import TypedDict
@@ -257,10 +253,6 @@ def run_agent(query: str) -> tuple:
 # ── Quick test ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     test_queries = [
-#        "How can I sleep better?",
-#        "What is experience of Sundar Pichai in delivering AI ML use cases?",
-#        "How much tariff imposed by Trump on AI ML industry?",
-#        "What AI and ML use cases have we delivered in Banking?",
         "What are the latest fraud detection use cases in the market in 2025?",
     ]
 
