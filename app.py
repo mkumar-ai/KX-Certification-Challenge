@@ -1,6 +1,3 @@
-# app.py
-# Purpose: Streamlit UI for KX — ChatGPT-style chat interface
-
 import streamlit as st
 import sys
 import os
