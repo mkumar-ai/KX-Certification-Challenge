@@ -9,8 +9,7 @@
 |------|--------|
 | GitHub Repo (public) | ✅ |
 | Written Submission Document | ✅ [`KX_Submission_Document.docx`](./KX_Submission_Document.docx) |
-| Live Demo (Render) | ✅ [KX Live App](#) *(replace with your Render URL)* |
-| Loom Video (≤5 min) | ✅ [Watch Demo](#) *(replace with your Loom URL)* |
+| Live Demo (Render) | ✅ [KX Live App](#) *(https://kx-certification-challenge.onrender.com/)* |
 
 ---
 
