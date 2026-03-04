@@ -1,5 +1,5 @@
 # retriever.py
-# Purpose: Hybrid retrieval — Metadata Pre-filter + Semantic Search (Qdrant) + BM25 Re-ranking
+# Purpose: Hybrid retrieval — Metadata Pre-filter + Semantic Vector Search + BM25 Re-ranking
 
 import os
 from dotenv import load_dotenv
@@ -16,34 +16,31 @@ QDRANT_API_KEY  = os.getenv("QDRANT_API_KEY")
 OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY")
 COLLECTION_NAME = "kx_capabilities"
 EMBEDDING_MODEL = "text-embedding-3-small"
-TOP_K_SEMANTIC  = 8   # retrieve more, then re-rank with BM25
-TOP_K_FINAL     = 4   # return top N after re-ranking
+TOP_K_SEMANTIC  = 8
+TOP_K_FINAL     = 4
+MAX_COLLECTION  = 11   # total chunks in collection — hard cap for number requests
 
 # ── Clients ───────────────────────────────────────────────────────────────────
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-# ── Metadata keyword maps (for pre-filtering) ─────────────────────────────────
+# ── Metadata keyword maps ─────────────────────────────────────────────────────
 INDUSTRY_KEYWORDS = {
-    "Banking":             ["banking", "bank", "retail bank", "commercial bank"],
-    "Insurance":           ["insurance", "insurer", "claims"],
-    "Healthcare":          ["healthcare", "health system", "hospital", "medical"],
-    "Financial Services":  ["financial services", "investment", "asset management", "wealth"],
+    "Banking":            ["banking", "bank", "retail bank", "commercial bank"],
+    "Insurance":          ["insurance", "insurer", "claims"],
+    "Healthcare":         ["healthcare", "health system", "hospital", "medical"],
+    "Financial Services": ["financial services", "investment", "asset management", "wealth"],
 }
 
 DOMAIN_KEYWORDS = {
-    "AI & Machine Learning": ["ai", "machine learning", "ml", "fraud", "churn", "credit", "scoring", "claims automation", "predictive"],
-    "Data Engineering":      ["data engineering", "lakehouse", "data platform", "etl", "regulatory reporting", "customer 360", "basel", "cdp"],
-    "Cyber Security":        ["cyber", "security", "zero trust", "soc", "threat", "ransomware", "siem"],
-    "Digital Transformation":["digital transformation", "core banking", "modernisation", "digitisation"],
+    "AI & Machine Learning":  ["ai", "machine learning", "ml", "fraud", "churn", "credit", "scoring", "claims automation", "predictive"],
+    "Data Engineering":       ["data engineering", "lakehouse", "data platform", "etl", "regulatory reporting", "customer 360", "basel", "cdp"],
+    "Cyber Security":         ["cyber", "security", "zero trust", "soc", "threat", "ransomware", "siem"],
+    "Digital Transformation": ["digital transformation", "core banking", "modernisation", "digitisation"],
 }
 
 
 def detect_filters(query: str) -> dict:
-    """
-    Detect industry and capability_domain from query text.
-    Returns a dict with keys 'industry' and/or 'capability_domain' if detected.
-    """
     q = query.lower()
     detected = {}
 
@@ -59,47 +56,28 @@ def detect_filters(query: str) -> dict:
         if any(kw in q for kw in keywords)
     ]
     if matched_domains:
-        detected["capability_domain"] = matched_domains[0]  # use first match
+        detected["capability_domain"] = matched_domains[0]
 
     return detected
 
 
 def build_qdrant_filter(filters: dict):
-    """Build Qdrant Filter object from detected metadata filters."""
     if not filters:
         return None
-
     conditions = []
-
     if "industry" in filters:
-        conditions.append(
-            FieldCondition(
-                key="industry",
-                match=MatchAny(any=filters["industry"]),
-            )
-        )
-
+        conditions.append(FieldCondition(key="industry", match=MatchAny(any=filters["industry"])))
     if "capability_domain" in filters:
-        conditions.append(
-            FieldCondition(
-                key="capability_domain",
-                match=MatchValue(value=filters["capability_domain"]),
-            )
-        )
-
-    if len(conditions) == 1:
-        return Filter(must=conditions)
-    return Filter(must=conditions)
+        conditions.append(FieldCondition(key="capability_domain", match=MatchValue(value=filters["capability_domain"])))
+    return Filter(must=conditions) if conditions else None
 
 
 def embed_query(query: str) -> list:
-    """Embed query using OpenAI text-embedding-3-small."""
     response = openai_client.embeddings.create(model=EMBEDDING_MODEL, input=[query])
     return response.data[0].embedding
 
 
 def semantic_search(query_vector: list, qdrant_filter, top_k: int) -> list:
-    """Run semantic search in Qdrant with optional metadata pre-filter."""
     results = qdrant_client.query_points(
         collection_name=COLLECTION_NAME,
         query=query_vector,
@@ -111,77 +89,64 @@ def semantic_search(query_vector: list, qdrant_filter, top_k: int) -> list:
 
 
 def bm25_rerank(query: str, candidates: list, top_k: int) -> list:
-    """
-    Re-rank semantic search candidates using BM25 keyword scoring.
-    Combines BM25 score + semantic score via Reciprocal Rank Fusion (RRF).
-    """
     if not candidates:
         return []
-
     texts = [hit.payload["text"] for hit in candidates]
     tokenized = [text.lower().split() for text in texts]
     bm25 = BM25Okapi(tokenized)
     bm25_scores = bm25.get_scores(query.lower().split())
 
-    # RRF: combine semantic rank + BM25 rank
-    semantic_ranks = {i: rank + 1 for rank, i in enumerate(range(len(candidates)))}
-    bm25_ranks = {i: rank + 1 for rank, i in enumerate(
-        sorted(range(len(bm25_scores)), key=lambda x: bm25_scores[x], reverse=True)
-    )}
-
-    k = 60  # RRF constant
+    k = 60
+    semantic_ranks = {i: i + 1 for i in range(len(candidates))}
+    bm25_ranks = {
+        i: rank + 1
+        for rank, i in enumerate(
+            sorted(range(len(bm25_scores)), key=lambda x: bm25_scores[x], reverse=True)
+        )
+    }
     rrf_scores = {
         i: (1 / (k + semantic_ranks[i])) + (1 / (k + bm25_ranks[i]))
         for i in range(len(candidates))
     }
+    ranked = sorted(rrf_scores, key=lambda x: rrf_scores[x], reverse=True)
+    return [candidates[i] for i in ranked[:top_k]]
 
-    ranked_indices = sorted(rrf_scores, key=lambda x: rrf_scores[x], reverse=True)
-    return [candidates[i] for i in ranked_indices[:top_k]]
 
+def retrieve(query: str, top_k: int = TOP_K_FINAL) -> list:
+    # Cap top_k at max collection size to prevent excessive retrieval
+    top_k = min(top_k, MAX_COLLECTION)
 
-def retrieve(query: str, top_k: int = TOP_K_FINAL) -> list[dict]:
-    """
-    Main retrieval function.
-    Returns list of dicts with keys: text, metadata, score_info
-    """
-    # Step 1: Detect metadata filters from query
     filters = detect_filters(query)
     qdrant_filter = build_qdrant_filter(filters)
 
     if filters:
         print(f"  [Retriever] Metadata filters applied: {filters}")
     else:
-        print(f"  [Retriever] No metadata filters detected — full collection search")
+        print(f"  [Retriever] No metadata filters — full collection search")
 
-    # Step 2: Embed query
     query_vector = embed_query(query)
-
-    # Step 3: Semantic search in Qdrant
-    candidates = semantic_search(query_vector, qdrant_filter, top_k=TOP_K_SEMANTIC)
+    candidates   = semantic_search(query_vector, qdrant_filter, top_k=TOP_K_SEMANTIC)
     print(f"  [Retriever] Semantic search returned {len(candidates)} candidates")
 
-    # Step 4: BM25 re-ranking
     reranked = bm25_rerank(query, candidates, top_k=top_k)
     print(f"  [Retriever] BM25 re-ranking done. Returning top {len(reranked)} chunks")
 
-    # Step 5: Format output
-    results = []
-    for hit in reranked:
-        results.append({
-            "text": hit.payload["text"],
-            "use_case_id": hit.payload.get("use_case_id"),
-            "title": hit.payload.get("title"),
-            "capability_domain": hit.payload.get("capability_domain"),
-            "industry": hit.payload.get("industry"),
-            "client": hit.payload.get("client"),
-            "type": hit.payload.get("type"),
-            "source": hit.payload.get("source"),
-        })
+    return [
+        {
+            "text":               hit.payload["text"],
+            "use_case_id":        hit.payload.get("use_case_id"),
+            "title":              hit.payload.get("title"),
+            "capability_domain":  hit.payload.get("capability_domain"),
+            "industry":           hit.payload.get("industry"),
+            "client":             hit.payload.get("client"),
+            "type":               hit.payload.get("type"),
+            "source":             hit.payload.get("source"),
+            "delivery_year":      hit.payload.get("delivery_year", "2024-2026"),
+        }
+        for hit in reranked
+    ]
 
-    return results
 
-
-# ── Quick test ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     test_queries = [
         "What AI and ML use cases have we delivered in Banking?",
@@ -189,10 +154,9 @@ if __name__ == "__main__":
         "Tell me about fraud detection work done for banks",
         "What cybersecurity engagements have we completed?",
     ]
-
     for q in test_queries:
         print(f"\nQuery: {q}")
         print("-" * 60)
         results = retrieve(q)
         for r in results:
-            print(f"  -> [{r['use_case_id']}] {r['title']} ({r['capability_domain']} | {r['industry']})")
+            print(f"  -> [{r['use_case_id']}] {r['title']} ({r['capability_domain']} | {r['delivery_year']})")

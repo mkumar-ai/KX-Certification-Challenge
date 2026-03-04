@@ -1,3 +1,6 @@
+# app.py
+# Purpose: Streamlit UI for KX — ChatGPT-style chat with fixed bottom input
+
 import streamlit as st
 import sys
 import os
@@ -25,14 +28,14 @@ html, body, [class*="css"] {
 }
 
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 1.5rem; padding-bottom: 0rem; max-width: 800px; }
+.block-container { padding-top: 1.5rem; padding-bottom: 4rem; max-width: 800px; }
 
 /* ── Header ── */
 .kx-header {
     text-align: center;
     padding: 1.2rem 0 1rem 0;
     border-bottom: 1px solid #1E2535;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 .kx-logo {
     font-family: 'DM Serif Display', serif;
@@ -49,19 +52,28 @@ html, body, [class*="css"] {
     margin-top: 0.3rem;
 }
 
-/* ── Chat history container ── */
-.chat-container {
+/* ── Suggestion chips ── */
+.chip-row {
     display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 1.2rem;
+    justify-content: center;
+}
+.chip {
+    background: #141824;
+    border: 1px solid #2A3550;
+    color: #8899BB;
+    padding: 0.3rem 0.8rem;
+    border-radius: 16px;
+    font-size: 0.72rem;
 }
 
 /* ── User bubble ── */
 .user-bubble {
     display: flex;
     justify-content: flex-end;
+    margin-bottom: 1rem;
 }
 .user-bubble-inner {
     background: #1E3A5F;
@@ -79,16 +91,17 @@ html, body, [class*="css"] {
     justify-content: flex-start;
     gap: 0.6rem;
     align-items: flex-start;
+    margin-bottom: 1.2rem;
 }
 .kx-avatar {
     background: #C8A96E;
     color: #0B0F1A;
     font-family: 'DM Serif Display', serif;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: bold;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -105,32 +118,14 @@ html, body, [class*="css"] {
     line-height: 1.75;
     box-shadow: 0 1px 4px rgba(0,0,0,0.15);
 }
-.kx-bubble-inner h1, .kx-bubble-inner h2, .kx-bubble-inner h3, .kx-bubble-inner h4 {
-    color: #0B0F1A;
-    margin-top: 0.8rem;
-    margin-bottom: 0.3rem;
+.kx-bubble-inner h1,.kx-bubble-inner h2,.kx-bubble-inner h3,.kx-bubble-inner h4 {
+    color: #0B0F1A; margin-top: 0.8rem; margin-bottom: 0.3rem;
 }
-.kx-bubble-inner ul, .kx-bubble-inner ol {
-    padding-left: 1.2rem;
-}
-.kx-bubble-inner a {
-    color: #1a73e8;
-    word-break: break-all;
-}
-.kx-bubble-inner table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-}
-.kx-bubble-inner th {
-    background: #f0f0f0;
-    padding: 6px 10px;
-    border: 1px solid #ddd;
-}
-.kx-bubble-inner td {
-    padding: 6px 10px;
-    border: 1px solid #ddd;
-}
+.kx-bubble-inner ul, .kx-bubble-inner ol { padding-left: 1.2rem; }
+.kx-bubble-inner a { color: #1a73e8; word-break: break-all; }
+.kx-bubble-inner table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.kx-bubble-inner th { background: #f0f0f0; padding: 6px 10px; border: 1px solid #ddd; }
+.kx-bubble-inner td { padding: 6px 10px; border: 1px solid #ddd; }
 
 /* ── Status badge ── */
 .status-badge {
@@ -142,72 +137,27 @@ html, body, [class*="css"] {
     border-radius: 20px;
     margin-bottom: 0.6rem;
 }
-.status-internal {
-    background: #E8F5EE;
-    color: #2E7D52;
-    border: 1px solid #B5D9C5;
-}
-.status-web {
-    background: #FFF8EC;
-    color: #A07020;
-    border: 1px solid #E8D090;
-}
+.status-internal { background: #E8F5EE; color: #2E7D52; border: 1px solid #B5D9C5; }
+.status-web      { background: #FFF8EC; color: #A07020; border: 1px solid #E8D090; }
 
-/* ── Input area fixed at bottom ── */
-.input-area {
-    position: sticky;
-    bottom: 0;
-    background: #0B0F1A;
-    padding: 0.8rem 0 1rem 0;
-    border-top: 1px solid #1E2535;
-    margin-top: 0.5rem;
+/* ── Native chat input styling ── */
+[data-testid="stChatInput"] {
+    background: #141824 !important;
+    border-top: 1px solid #1E2535 !important;
 }
-
-/* ── Suggestion chips ── */
-.chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    margin-bottom: 0.8rem;
-}
-.chip {
-    background: #141824;
-    border: 1px solid #2A3550;
-    color: #8899BB;
-    padding: 0.3rem 0.8rem;
-    border-radius: 16px;
-    font-size: 0.72rem;
-    cursor: default;
-}
-
-/* ── Streamlit overrides ── */
-.stTextArea textarea {
+[data-testid="stChatInput"] textarea {
+    min-height: 100px !important;
+    max-height: 200px !important;
     background: #FFFFFF !important;
-    border: 1px solid #D0D7E3 !important;
-    border-radius: 12px !important;
     color: #1A1A2E !important;
+    border-radius: 12px !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 0.92rem !important;
-    padding: 0.85rem 1rem !important;
-    resize: none !important;
 }
-.stTextArea textarea:focus {
-    border-color: #C8A96E !important;
-    box-shadow: 0 0 0 1px #C8A96E44 !important;
-}
-.stButton > button {
+[data-testid="stChatInput"] button {
     background: #C8A96E !important;
-    color: #0B0F1A !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 500 !important;
-    font-size: 0.88rem !important;
-    padding: 0.6rem 1.5rem !important;
-    width: 100% !important;
-    transition: opacity 0.2s !important;
+    border-radius: 8px !important;
 }
-.stButton > button:hover { opacity: 0.85 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -222,9 +172,9 @@ st.markdown("""
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "messages" not in st.session_state:
-    st.session_state.messages = []  # list of {role, content, web_used}
+    st.session_state.messages = []
 
-# ── Suggestion chips (shown only when no messages yet) ───────────────────────
+# ── Suggestion chips (only on fresh start) ───────────────────────────────────
 SUGGESTIONS = [
     "AI & ML use cases in Banking",
     "Do we have Insurance experience?",
@@ -242,71 +192,43 @@ if not st.session_state.messages:
     )
 
 # ── Render chat history ───────────────────────────────────────────────────────
-import markdown as md_lib
-
-def render_markdown_to_html(text: str) -> str:
-    """Convert markdown to HTML for display inside bubble."""
+def render_markdown(text: str) -> str:
     try:
         import markdown
         return markdown.markdown(text, extensions=["tables", "fenced_code"])
     except ImportError:
-        # Fallback: basic line breaks
         return text.replace("\n", "<br>")
 
 for msg in st.session_state.messages:
     if msg["role"] == "user":
         st.markdown(f"""
-        <div class="chat-container">
-            <div class="user-bubble">
-                <div class="user-bubble-inner">{msg["content"]}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        <div class="user-bubble">
+            <div class="user-bubble-inner">{msg["content"]}</div>
+        </div>""", unsafe_allow_html=True)
     else:
         badge = (
             '<span class="status-badge status-web">⚡ Internal + Web Search</span><br>'
             if msg.get("web_used") else
             '<span class="status-badge status-internal">✦ Internal Knowledge Base</span><br>'
         )
-        html_content = render_markdown_to_html(msg["content"])
+        html_content = render_markdown(msg["content"])
         st.markdown(f"""
-        <div class="chat-container">
-            <div class="kx-bubble">
-                <div class="kx-avatar">KX</div>
-                <div class="kx-bubble-inner">{badge}{html_content}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        <div class="kx-bubble">
+            <div class="kx-avatar">KX</div>
+            <div class="kx-bubble-inner">{badge}{html_content}</div>
+        </div>""", unsafe_allow_html=True)
 
-# ── Input area (sticky bottom) ────────────────────────────────────────────────
-st.markdown('<div class="input-area">', unsafe_allow_html=True)
+# ── Fixed bottom chat input (native Streamlit — always stays at bottom) ───────
+query = st.chat_input("Ask about Nexvance's use cases, capabilities, or market intelligence...")
 
-query = st.text_area(
-    label="",
-    placeholder="Ask about Nexvance's use cases, capabilities, or market intelligence...",
-    height=90,
-    label_visibility="collapsed",
-    key="query_input",
-)
-
-col1, col2, col3 = st.columns([3, 2, 3])
-with col2:
-    ask_btn = st.button("Ask KX →", use_container_width=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ── Handle submission ─────────────────────────────────────────────────────────
-if ask_btn and query.strip():
-    # Add user message to history
-    st.session_state.messages.append({
-        "role": "user",
-        "content": query.strip(),
-    })
+if query and query.strip():
+    # Add user message
+    st.session_state.messages.append({"role": "user", "content": query.strip()})
 
     with st.spinner("KX is thinking..."):
         answer, web_used = run_agent(query.strip())
 
-    # Add KX response to history
+    # Add KX response
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
@@ -314,6 +236,3 @@ if ask_btn and query.strip():
     })
 
     st.rerun()
-
-elif ask_btn:
-    st.warning("Please enter a question.")

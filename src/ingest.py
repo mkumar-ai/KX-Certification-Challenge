@@ -23,7 +23,7 @@ OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
 COLLECTION_NAME   = "kx_capabilities"
 EMBEDDING_MODEL   = "text-embedding-3-small"
 EMBEDDING_DIM     = 1536
-DOCX_PATH         = "data/Capability_Report.docx"
+DOCX_PATH         = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "Capability_Report.docx")
 
 # ── Clients ───────────────────────────────────────────────────────────────────
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
@@ -49,20 +49,123 @@ def build_chunks(paras: dict) -> list:
             "client": "Multiple",
             "type": "summary",
             "source": "internal",
+            "delivery_year": "2024-2026",
+            "delivery_year_start": 2024,
+            "delivery_year_end": 2026,
         }
     ]
 
     use_case_meta = [
-        {"start": 31, "end": 42, "use_case_id": "UC1", "title": "AI-Powered Credit Risk Scoring", "capability_domain": "AI & Machine Learning", "industry": ["Banking"], "client": "BankNova"},
-        {"start": 42, "end": 52, "use_case_id": "UC2", "title": "Real-Time Fraud Detection", "capability_domain": "AI & Machine Learning", "industry": ["Banking"], "client": "NexBank"},
-        {"start": 52, "end": 63, "use_case_id": "UC3", "title": "Customer Churn Prediction & Retention Engine", "capability_domain": "AI & Machine Learning", "industry": ["Banking"], "client": "CrescentBank"},
-        {"start": 63, "end": 74, "use_case_id": "UC4", "title": "Intelligent Claims Automation", "capability_domain": "AI & Machine Learning", "industry": ["Insurance"], "client": "ShieldGen Insurance"},
-        {"start": 79, "end": 90, "use_case_id": "UC5", "title": "Enterprise Data Lakehouse Migration", "capability_domain": "Data Engineering", "industry": ["Banking"], "client": "HorizonBank"},
-        {"start": 90, "end": 100, "use_case_id": "UC6", "title": "Basel III Regulatory Reporting Automation", "capability_domain": "Data Engineering", "industry": ["Banking"], "client": "EuroCapital Bank"},
-        {"start": 100, "end": 110, "use_case_id": "UC7", "title": "Unified Customer Data Platform (Customer 360)", "capability_domain": "Data Engineering", "industry": ["Banking"], "client": "PivotBank"},
-        {"start": 115, "end": 130, "use_case_id": "UC8", "title": "Zero-Trust Architecture Implementation", "capability_domain": "Cyber Security", "industry": ["Financial Services"], "client": "ApexCapital Advisors"},
-        {"start": 130, "end": 141, "use_case_id": "UC9", "title": "AI-Powered SOC Transformation", "capability_domain": "Cyber Security", "industry": ["Healthcare"], "client": "MedShield Health System"},
-        {"start": 146, "end": 160, "use_case_id": "UC10", "title": "End-to-End Retail Banking Digital Transformation", "capability_domain": "Digital Transformation", "industry": ["Banking"], "client": "FutureBank"},
+        {
+            "start": 31, "end": 42,
+            "use_case_id": "UC1",
+            "title": "AI-Powered Credit Risk Scoring",
+            "capability_domain": "AI & Machine Learning",
+            "industry": ["Banking"],
+            "client": "BankNova",
+            "delivery_year": "2024",
+            "delivery_year_start": 2024,
+            "delivery_year_end": 2024,
+        },
+        {
+            "start": 42, "end": 52,
+            "use_case_id": "UC2",
+            "title": "Real-Time Fraud Detection",
+            "capability_domain": "AI & Machine Learning",
+            "industry": ["Banking"],
+            "client": "NexBank",
+            "delivery_year": "2024",
+            "delivery_year_start": 2024,
+            "delivery_year_end": 2024,
+        },
+        {
+            "start": 52, "end": 63,
+            "use_case_id": "UC3",
+            "title": "Customer Churn Prediction & Retention Engine",
+            "capability_domain": "AI & Machine Learning",
+            "industry": ["Banking"],
+            "client": "CrescentBank",
+            "delivery_year": "2024",
+            "delivery_year_start": 2024,
+            "delivery_year_end": 2024,
+        },
+        {
+            "start": 63, "end": 74,
+            "use_case_id": "UC4",
+            "title": "Intelligent Claims Automation",
+            "capability_domain": "AI & Machine Learning",
+            "industry": ["Insurance"],
+            "client": "ShieldGen Insurance",
+            "delivery_year": "2025",
+            "delivery_year_start": 2025,
+            "delivery_year_end": 2025,
+        },
+        {
+            "start": 79, "end": 90,
+            "use_case_id": "UC5",
+            "title": "Enterprise Data Lakehouse Migration",
+            "capability_domain": "Data Engineering",
+            "industry": ["Banking"],
+            "client": "HorizonBank",
+            "delivery_year": "2024",
+            "delivery_year_start": 2024,
+            "delivery_year_end": 2024,
+        },
+        {
+            "start": 90, "end": 100,
+            "use_case_id": "UC6",
+            "title": "Basel III Regulatory Reporting Automation",
+            "capability_domain": "Data Engineering",
+            "industry": ["Banking"],
+            "client": "EuroCapital Bank",
+            "delivery_year": "2025",
+            "delivery_year_start": 2025,
+            "delivery_year_end": 2025,
+        },
+        {
+            "start": 100, "end": 110,
+            "use_case_id": "UC7",
+            "title": "Unified Customer Data Platform (Customer 360)",
+            "capability_domain": "Data Engineering",
+            "industry": ["Banking"],
+            "client": "PivotBank",
+            "delivery_year": "2025",
+            "delivery_year_start": 2025,
+            "delivery_year_end": 2025,
+        },
+        {
+            "start": 115, "end": 130,
+            "use_case_id": "UC8",
+            "title": "Zero-Trust Architecture Implementation",
+            "capability_domain": "Cyber Security",
+            "industry": ["Financial Services"],
+            "client": "ApexCapital Advisors",
+            "delivery_year": "2025",
+            "delivery_year_start": 2025,
+            "delivery_year_end": 2025,
+        },
+        {
+            "start": 130, "end": 141,
+            "use_case_id": "UC9",
+            "title": "AI-Powered SOC Transformation",
+            "capability_domain": "Cyber Security",
+            "industry": ["Healthcare"],
+            "client": "MedShield Health System",
+            "delivery_year": "2026",
+            "delivery_year_start": 2026,
+            "delivery_year_end": 2026,
+        },
+        {
+            "start": 146, "end": 160,
+            "use_case_id": "UC10",
+            "title": "End-to-End Retail Banking Digital Transformation",
+            "capability_domain": "Digital Transformation",
+            "industry": ["Banking"],
+            "client": "FutureBank",
+            "delivery_year": "2024-2026",
+            "delivery_year_start": 2024,
+            "delivery_year_end": 2026,
+        },
     ]
 
     for uc in use_case_meta:
@@ -76,6 +179,9 @@ def build_chunks(paras: dict) -> list:
             "client": uc["client"],
             "type": "use_case",
             "source": "internal",
+            "delivery_year": uc["delivery_year"],
+            "delivery_year_start": uc["delivery_year_start"],
+            "delivery_year_end": uc["delivery_year_end"],
         })
 
     return chunks
@@ -88,23 +194,36 @@ def embed_texts(texts: list) -> list:
 
 def ensure_collection():
     existing = [c.name for c in qdrant_client.get_collections().collections]
-    if COLLECTION_NAME not in existing:
-        qdrant_client.create_collection(
+    if COLLECTION_NAME in existing:
+        qdrant_client.delete_collection(COLLECTION_NAME)
+        print(f"Deleted existing collection '{COLLECTION_NAME}' for fresh re-ingestion.")
+
+    qdrant_client.create_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+    )
+    for field, schema in [
+        ("capability_domain", PayloadSchemaType.KEYWORD),
+        ("industry",          PayloadSchemaType.KEYWORD),
+        ("type",              PayloadSchemaType.KEYWORD),
+        ("delivery_year",     PayloadSchemaType.KEYWORD),
+    ]:
+        qdrant_client.create_payload_index(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+            field_name=field,
+            field_schema=schema,
         )
-        for field, schema in [("capability_domain", PayloadSchemaType.KEYWORD), ("industry", PayloadSchemaType.KEYWORD), ("type", PayloadSchemaType.KEYWORD)]:
-            qdrant_client.create_payload_index(collection_name=COLLECTION_NAME, field_name=field, field_schema=schema)
-        print(f"Collection '{COLLECTION_NAME}' created with payload indexes.")
-    else:
-        print(f"Collection '{COLLECTION_NAME}' already exists. Skipping creation.")
+    print(f"Collection '{COLLECTION_NAME}' created with payload indexes.")
 
 
 def upsert_chunks(chunks: list, embeddings: list):
     points = []
     for chunk, vector in zip(chunks, embeddings):
-        payload = {**chunk}
-        points.append(PointStruct(id=str(uuid.uuid4()), vector=vector, payload=payload))
+        points.append(PointStruct(
+            id=str(uuid.uuid4()),
+            vector=vector,
+            payload={**chunk},
+        ))
     qdrant_client.upsert(collection_name=COLLECTION_NAME, points=points)
     print(f"Upserted {len(points)} chunks to '{COLLECTION_NAME}'.")
 
@@ -117,11 +236,10 @@ if __name__ == "__main__":
     chunks = build_chunks(paras)
     print(f"  -> {len(chunks)} chunks built")
     for c in chunks:
-        print(f"  [{c['use_case_id']}] {c['title']} | {len(c['text'])} chars")
+        print(f"  [{c['use_case_id']}] {c['title']} | {c['delivery_year']} | {len(c['text'])} chars")
 
     print("\nEmbedding chunks...")
-    texts = [c["text"] for c in chunks]
-    embeddings = embed_texts(texts)
+    embeddings = embed_texts([c["text"] for c in chunks])
     print(f"  -> {len(embeddings)} embeddings generated")
 
     print("\nEnsuring Qdrant collection...")
