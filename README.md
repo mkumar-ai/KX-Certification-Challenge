@@ -10,6 +10,7 @@
 | GitHub Repo (public) | ✅ https://github.com/mkumar-ai/KX-Certification-Challenge|
 | Written Submission Document | ✅ [`KX_Submission_Document.md`](./KX_Submission_Document.md) |
 | Live Demo (Render) | ✅ [KX Live App](#) *(https://kx-certification-challenge.onrender.com/)* |
+| Loom Video | ✅ https://www.loom.com/share/c12ad7480b874516ae490914e3607635 |
 
 ---
 
