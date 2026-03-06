@@ -7,7 +7,7 @@
 
 | Item | Status |
 |------|--------|
-| GitHub Repo (public) | ✅ |
+| GitHub Repo (public) | ✅ https://github.com/mkumar-ai/KX-Certification-Challenge|
 | Written Submission Document | ✅ [`KX_Submission_Document.md`](./KX_Submission_Document.md) |
 | Live Demo (Render) | ✅ [KX Live App](#) *(https://kx-certification-challenge.onrender.com/)* |
 
@@ -180,7 +180,7 @@ Results saved to `data/ragas_comparison.csv`.
 
 ## 📄 Submission Document
 
-Full written responses to all 7 tasks are in [`KX_Submission_Document.docx`](./KX_Submission_Document.docx).
+Full written responses to all 7 tasks are in [`KX_Submission_Document.md`](./KX_Submission_Document.md).
 
 ---
 
