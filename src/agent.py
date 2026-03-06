@@ -1,7 +1,3 @@
-# agent.py
-# Purpose: LangGraph agentic RAG — internal retrieval first, web search only if needed
-# v5: Fixed year-as-count bug + show-all requests skip web search
-
 import os
 import re
 from typing import TypedDict
@@ -30,8 +26,16 @@ llm_best = ChatOpenAI(model="gpt-4o",      temperature=0, api_key=OPENAI_API_KEY
 
 tavily_tool = TavilySearchResults(max_results=4, tavily_api_key=TAVILY_API_KEY)
 
-# ── Year pattern — to distinguish years from counts ──────────────────────────
+# ── Year pattern — to distinguish years from counts ───────────────────────────
 YEAR_PATTERN = re.compile(r'\b(19|20)\d{2}\b')
+
+# ── Show-all keywords — retrieve full collection ──────────────────────────────
+SHOW_ALL_KEYWORDS = [
+    "all", "total", "every", "breakdown", "split",
+    "by industry", "by domain", "across", "each industry",
+    "each domain", "full list", "complete list", "how many",
+    "count", "summary", "overview", "all use cases",
+]
 
 # ── External intent keywords ──────────────────────────────────────────────────
 EXTERNAL_INTENT_KEYWORDS = [
@@ -49,8 +53,8 @@ class AgentState(TypedDict):
     web_results:      list
     need_web_search:  bool
     web_search_used:  bool
-    requested_n:      int   # actual count requested (0 = not specified)
-    show_all:         bool  # True when user wants all available
+    requested_n:      int   # 0 = not specified by user
+    show_all:         bool
     final_answer:     str
 
 
@@ -59,18 +63,25 @@ def extract_requested_count(query: str) -> tuple:
     """
     Returns (requested_n, show_all).
     - Strips year references before extracting count
-    - show_all=True when requested_n > MAX_COLLECTION (typo like 10000)
+    - requested_n=0 means user did NOT specify a number
+    - show_all=True when show-all keywords detected OR requested_n > MAX_COLLECTION
     """
+    q_lower = query.lower()
+
+    # Check for show-all intent keywords first
+    if any(kw in q_lower for kw in SHOW_ALL_KEYWORDS):
+        return MAX_COLLECTION, True
+
     # Remove year references so they don't get parsed as counts
-    query_no_years = YEAR_PATTERN.sub("", query.lower())
+    query_no_years = YEAR_PATTERN.sub("", q_lower)
 
     number_match = re.search(r'\b(\d+)\b', query_no_years)
     if not number_match:
-        return 4, False  # default retrieval
+        return 0, False  # no number specified — do NOT default to 4
 
     requested_n = int(number_match.group(1))
 
-    # If number is unrealistically large → user wants "all" → don't web search
+    # Unrealistically large number → treat as show all
     if requested_n > MAX_COLLECTION:
         return MAX_COLLECTION, True
 
@@ -134,7 +145,14 @@ def retrieve_internal(state: AgentState) -> AgentState:
     print("\n[Agent] Step 1: Searching internal knowledge base...")
 
     requested_n, show_all = extract_requested_count(state["query"])
-    top_k = max(requested_n, 4)
+
+    # Determine how many chunks to retrieve
+    if show_all:
+        top_k = MAX_COLLECTION
+    elif requested_n > 0:
+        top_k = max(requested_n, 4)
+    else:
+        top_k = 4  # sensible default when no number specified
 
     results = retrieve(state["query"], top_k=top_k)
     print(f"[Agent] Retrieved {len(results)} chunks | requested_n={requested_n} | show_all={show_all}")
@@ -154,9 +172,9 @@ def assess_sufficiency(state: AgentState) -> AgentState:
         print("[Agent] No internal results — web search needed")
         return {**state, "need_web_search": True}
 
-    # Rule 2: show_all=True means large/typo number → return all internal, no web search
+    # Rule 2: show_all → return all internal, never web search
     if show_all:
-        print("[Agent] Large number detected (show all) — returning all internal, skipping web search")
+        print("[Agent] Show-all intent — returning all internal, skipping web search")
         return {**state, "need_web_search": False}
 
     # Rule 3: Explicit external/market intent keywords
@@ -164,9 +182,10 @@ def assess_sufficiency(state: AgentState) -> AgentState:
         print("[Agent] External intent detected — web search needed")
         return {**state, "need_web_search": True}
 
-    # Rule 4: User asked for N items but found fewer internally
-    if requested_n > 0 and len(internal_results) < requested_n:
-        print(f"[Agent] Requested {requested_n}, found {len(internal_results)} — web search needed")
+    # Rule 4: User EXPLICITLY asked for N items and we found fewer
+    # Only applies when user specified a number AND it's within collection size
+    if requested_n > 0 and requested_n <= MAX_COLLECTION and len(internal_results) < requested_n:
+        print(f"[Agent] User explicitly requested {requested_n}, found {len(internal_results)} — web search needed")
         return {**state, "need_web_search": True}
 
     print("[Agent] Internal results sufficient — skipping web search")
@@ -210,26 +229,77 @@ def generate_answer(state: AgentState) -> AgentState:
         )
 
     system_prompt = """You are KX — an intelligent knowledge assistant for Nexvance Consulting Group.
-You help partners and leadership quickly surface relevant use cases and market intelligence.
+You help partners quickly surface relevant use cases and market intelligence before client meetings.
 
-Guidelines:
-- Be concise, structured, and professional
+## RESPONSE FORMAT RULES — FOLLOW STRICTLY
+
+### Rule 1: Detect query intent first
+
+- SUMMARY intent ("how many", "total", "count", "breakdown", "split by", "by industry", "by domain", "overview"):
+  Respond with a brief structured summary ONLY. Show counts grouped by domain/industry.
+  Do NOT show full use case details. Keep to 8-10 lines max.
+
+- DETAIL intent ("show me", "tell me about", "describe", "what did we deliver", "explain"):
+  Show full use case details using the format in Rule 3.
+
+- PITCH intent ("pitch", "prospect", "meeting with", "lead with", "strongest outcome"):
+  Show the 1-2 most relevant use cases with emphasis on measurable outcomes and metrics.
+
+### Rule 2: Summary response format
+CRITICAL: Build your response EXCLUSIVELY from the use cases provided in the context below.
+Do NOT reference any industry, domain, or client not explicitly present in the retrieved chunks.
+If an industry has zero use cases in the retrieved context — do NOT mention it at all. Not even to say "no use cases found".
+
+Example structure:
+**We have delivered X use cases:**
+
+**[Industry 1]** — X use cases
+- Use Case Title (Client, Year)
+
+**[Industry 2]** — X use cases  
+- Use Case Title (Client, Year)
+
+Only include industries/domains that have actual use cases in the retrieved context.
+NEVER mention an industry or domain with zero use cases — simply omit it.
+
+### Rule 3: Detail response format
+For EACH use case use this EXACT format. Always put a divider (---) between use cases:
+
+---
+**[UC#] Use Case Title**
+| Field | Value |
+|-------|-------|
+| Client | Name |
+| Domain | Domain |
+| Industry | Industry |
+| Delivered | Year |
+
+**Challenge:** One concise sentence.
+**Solution:** One concise sentence.
+**Key Outcomes:**
+- Outcome 1 with metric
+- Outcome 2 with metric
+- Outcome 3 with metric
+---
+
+### Rule 4: Web sources
+- ONLY append a web sources section if external web results were actually provided and used
+- NEVER show web source links for purely internal responses
+- When combining internal + web, use clear section headings to separate them
+
+### Rule 5: General rules
 - Always prioritise internal knowledge base results
-- Use bullet points or tables when listing multiple use cases
-- Include client names, outcomes, and key metrics when available
-- When listing multiple use cases, always include the delivery year from metadata
-- When asked to sort chronologically, sort by delivery_year ascending
-- When a use case comes from web search, explicitly label it as "🌐 External Market Use Case (Web Source)"
-- If combining internal and external sources, clearly distinguish them with separate sections
-- Never fabricate metrics or outcomes not present in the provided context
-- If a query references a year (e.g. 2025), filter and show only use cases delivered in that year"""
+- NEVER fabricate metrics, client names, or outcomes not present in the provided context
+- NEVER mention industries, domains, or clients not present in the retrieved chunks
+- When sorting chronologically, sort by delivery_year ascending
+- Be concise and professional — partners are time-pressed"""
 
     user_prompt = f"""Partner Query: {query}
 
 {internal_context}
 {web_context}
 
-Please provide a comprehensive, well-structured answer."""
+Please provide a well-structured answer following the format rules above."""
 
     response = llm_best.invoke([
         SystemMessage(content=system_prompt),
@@ -237,7 +307,9 @@ Please provide a comprehensive, well-structured answer."""
     ])
 
     answer = response.content
-    if web_results:
+
+    # Only append web sources if web search was actually used
+    if web_results and state.get("web_search_used"):
         sources = "\n\n---\n**🌐 Web Sources:**\n" + "\n".join(
             f"- [{r.get('url', 'N/A')}]({r.get('url', 'N/A')})"
             for r in web_results if r.get("url")
@@ -299,10 +371,7 @@ def run_agent(query: str) -> tuple:
 # ── Quick test ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     test_queries = [
-        "How many use cases have been delivered in 2025?",
-        "Show me top 10000 use cases",
-        "Need 3 use cases related to cyber security",
-        "Show me 3 use cases of AI ML and arrange them chronologically",
+        "SHow many use cases we delivered in Data Engineering in Banking industry",
     ]
     for q in test_queries:
         print(f"\n{'='*70}\nQUERY: {q}\n{'='*70}")

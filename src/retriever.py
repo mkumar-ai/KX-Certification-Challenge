@@ -16,7 +16,7 @@ QDRANT_API_KEY  = os.getenv("QDRANT_API_KEY")
 OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY")
 COLLECTION_NAME = "kx_capabilities"
 EMBEDDING_MODEL = "text-embedding-3-small"
-TOP_K_SEMANTIC  = 8
+TOP_K_SEMANTIC  = 15
 TOP_K_FINAL     = 4
 MAX_COLLECTION  = 11   # total chunks in collection — hard cap for number requests
 
