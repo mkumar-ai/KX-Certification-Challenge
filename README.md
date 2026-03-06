@@ -8,7 +8,7 @@
 | Item | Status |
 |------|--------|
 | GitHub Repo (public) | ✅ |
-| Written Submission Document | ✅ [`KX_Submission_Document.docx`](./KX_Submission_Document.docx) |
+| Written Submission Document | ✅ [`KX_Submission_Document.md`](./KX_Submission_Document.md) |
 | Live Demo (Render) | ✅ [KX Live App](#) *(https://kx-certification-challenge.onrender.com/)* |
 
 ---
@@ -128,7 +128,7 @@ KX-Certification-Challenge/
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/YOUR_USERNAME/KX-Certification-Challenge.git
+git clone https://github.com/mkumar-ai/KX-Certification-Challenge.git
 cd KX-Certification-Challenge
 ```
 
